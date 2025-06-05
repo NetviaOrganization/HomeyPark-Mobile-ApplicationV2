@@ -7,9 +7,6 @@ class ParkingLocation {
   final double longitude;
   final String numDirection;
   final String street;
-  final String? day;
-  final String? startTime;
-  final String? endTime;
 
   ParkingLocation({
     this.id,
@@ -20,9 +17,6 @@ class ParkingLocation {
     required this.longitude,
     required this.numDirection,
     required this.street,
-    this.day,
-    this.startTime,
-    this.endTime,
   });
 
   factory ParkingLocation.fromJson(Map<String, dynamic> json) {
@@ -31,13 +25,14 @@ class ParkingLocation {
       address: json['address'],
       district: json['district'],
       city: json['city'],
-      latitude: double.parse(json['latitude']),
-      longitude: double.parse(json['longitude']),
+      latitude: (json['latitude'] is String)
+          ? double.parse(json['latitude'])
+          : json['latitude'],
+      longitude: (json['longitude'] is String)
+          ? double.parse(json['longitude'])
+          : json['longitude'],
       numDirection: json['numDirection'],
       street: json['street'],
-      day: json['day'],
-      startTime: json['startTime'],
-      endTime: json['endTime'],
     );
   }
 
@@ -51,9 +46,6 @@ class ParkingLocation {
       'longitude': longitude,
       'numDirection': numDirection,
       'street': street,
-      'day': day,
-      'startTime': startTime,
-      'endTime': endTime,
     };
   }
 }

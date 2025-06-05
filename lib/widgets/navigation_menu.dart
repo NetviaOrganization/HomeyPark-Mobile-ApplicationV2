@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:homeypark_mobile_application/config/pref/preferences.dart';
+import 'package:homeypark_mobile_application/screens/screen.dart';
 
 class NavigationMenu extends StatefulWidget {
   const NavigationMenu({super.key});
@@ -28,60 +30,68 @@ const accountDestinations = [
   NavigationDrawerDestination(
       icon: Icon(Icons.directions_car), label: Text("Vehículos")),
   NavigationDrawerDestination(
+      icon: Icon(Icons.credit_card), label: Text("Métodos de pago")),
+  NavigationDrawerDestination(
       icon: Icon(Icons.logout), label: Text("Cerrar sesión")),
 ];
 
 class _NavigationMenuState extends State<NavigationMenu> {
   int screenIndex = 0;
-  // late bool showNavigationDrawer;
+  late bool showNavigationDrawer;
 
-  // void handleScreenChanged(int selectedScreen) {
-  //   setState(() {
-  //     screenIndex = selectedScreen;
-  //   });
+  void handleScreenChanged(int selectedScreen) {
+    setState(() {
+      screenIndex = selectedScreen;
+    });
 
-  //   switch (screenIndex) {
-  //     case 1:
-  //       Navigator.push(
-  //         context,
-  //         MaterialPageRoute(builder: (context) => const ReservationsScreen()),
-  //       );
-  //       break;
-  //     case 2:
-  //       Navigator.push(
-  //         context,
-  //         MaterialPageRoute(builder: (context) => const ManageGarageScreen()),
-  //       );
-  //       break;
-  //     case 3:
-  //       Navigator.push(
-  //         context,
-  //         MaterialPageRoute(
-  //             builder: (context) => const HostReservationsScreen()),
-  //       );
-  //       break;
-  //     case 5:
-  //       Navigator.push(
-  //           context,
-  //           MaterialPageRoute(
-  //               builder: (context) => const ManageVehiclesScreen()));
-  //       break;
-  //     case 6:
-  //       preferences.deleteUserId();
-  //       Navigator.pushReplacement(context,
-  //           MaterialPageRoute(builder: (context) => const LoginScreen()));
-  //       break;
+    switch (screenIndex) {
+      case 1:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ReservationsScreen()),
+        );
+        break;
+      case 2:
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (context) => const ReservationsScreen()),
+        );
+        break;
+      case 3:
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => const HostReservationsScreen()),
+        );
+        break;
+      case 5:
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const ReservationsScreen()));
+        break;
+      case 6:
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) => const ReservationsScreen()));
+        break;
+      case 7:
+        preferences.deleteUserId();
+        Navigator.pushReplacement(context,
+            MaterialPageRoute(builder: (context) => const ReservationsScreen()));
+        break;
 
-  //     default:
-  //       Scaffold.of(context).closeDrawer();
-  //   }
-  // }
+      default:
+        Scaffold.of(context).closeDrawer();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return NavigationDrawer(
       selectedIndex: screenIndex,
-      // onDestinationSelected: handleScreenChanged,
+      onDestinationSelected: handleScreenChanged,
       children: [
         ...guestDestinations,
         const Divider(),

@@ -1,6 +1,6 @@
 import 'dart:convert';
+import 'package:flutter/material.dart'; // Para usar debugPrint
 
-// import 'package:homey_park/model/parking_location.dart';
 import 'package:homeypark_mobile_application/model/parking.dart';
 import 'package:homeypark_mobile_application/model/parking_location.dart';
 import 'package:homeypark_mobile_application/services/base_service.dart';
@@ -41,16 +41,39 @@ class ParkingService extends BaseService {
   }
 
   static Future<List<ParkingLocation>> getParkingsLocations() async {
-    final parkings = await getParkings();
+    debugPrint('⚡️ ParkingService: Llamando a getParkingsLocations()');
 
-    List<ParkingLocation> locations = parkings
-        .map((Parking parking) => parking.location)
-        .toList()
-        .cast<ParkingLocation>();
+    try {
+      final parkings = await getParkings();
+      debugPrint('⚡️ Parkings obtenidos: ${parkings.length}');
 
-    return locations;
+      if (parkings.isEmpty) {
+        debugPrint('⚠️ No se encontraron parkings');
+        return [];
+      }
+
+      try {
+        List<ParkingLocation> locations = [];
+        for (var parking in parkings) {
+          debugPrint('⚡️ Procesando parking ID: ${parking.id}');
+          if (parking.location != null) {
+            locations.add(parking.location);
+          } else {
+            debugPrint('❌ Parking sin ubicación: ${parking.id}');
+          }
+        }
+
+        debugPrint('✅ Ubicaciones extraídas: ${locations.length}');
+        return locations;
+      } catch (e) {
+        debugPrint('❌ Error al procesar ubicaciones: $e');
+        rethrow;
+      }
+    } catch (e) {
+      debugPrint('❌ Excepción en getParkingsLocations: $e');
+      return [];
+    }
   }
-
   static Future<List<Parking>> getParkingListByUserId(int id) async {
     final response = await http.get(Uri.parse('$baseUrl/profile/$id'));
 

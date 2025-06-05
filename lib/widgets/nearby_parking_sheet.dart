@@ -62,7 +62,7 @@ class _NearbyParkingSheetState extends State<NearbyParkingSheet> {
                             borderRadius: BorderRadius.circular(8),
                             side: BorderSide(
                               color:
-                                  theme.colorScheme.onSurface.withOpacity(0.1),
+                                Color.fromRGBO(0, 0, 0, 0.1),
                             ),
                           ),
                           shadowColor: null,
