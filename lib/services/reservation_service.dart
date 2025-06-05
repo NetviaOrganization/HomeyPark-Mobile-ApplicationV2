@@ -1,134 +1,133 @@
 import 'dart:convert';
+import 'package:homeypark_mobile_application/model/reservation.dart';
+import 'package:homeypark_mobile_application/model/reservation_dto.dart';
+import 'package:homeypark_mobile_application/services/base_service.dart';
 import 'package:http/http.dart' as http;
-import '../model/reservation.dart';
-import 'base_service.dart';
+import 'package:flutter/material.dart'; // Para usar debugPrint
 
-class ReservationService {
-  static final String url = "${BaseService.baseUrl}/reservations";
-
-  static Future<List<Reservation>> getAllReservations() async {
-    final response = await http.get(Uri.parse(url));
-
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((reservation) => Reservation.fromJson(reservation)).toList();
-    } else {
-      throw Exception('Failed to load reservations');
-    }
-  }
-
-  static Future<Reservation?> createReservation(
-      Reservation newReservation, String filePath) async {
-    final request = http.MultipartRequest('POST', Uri.parse(url));
-    request.files.add(await http.MultipartFile.fromPath('file', filePath));
-    request.fields['reservation'] = jsonEncode(newReservation.toJson());
-
-    final response = await request.send();
-
-    if (response.statusCode == 201) {
-      final responseBody = await response.stream.bytesToString();
-      return Reservation.fromJson(jsonDecode(responseBody));
-    } else {
-      throw Exception('Failed to create reservation');
-    }
-  }
-
-  static Future<Reservation?> updateReservation(
-      int id, Reservation updatedReservation) async {
-    final response = await http.put(
-      Uri.parse('$url/$id'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(updatedReservation.toJson()),
-    );
-
-    if (response.statusCode == 200) {
-      return Reservation.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to update reservation');
-    }
-  }
-
-  static Future<Reservation?> updateReservationStatus(
-      int id, String status) async {
-    final response = await http.put(
-      Uri.parse('$url/$id/status'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode({'status': status}),
-    );
-
-    if (response.statusCode == 200) {
-      return Reservation.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to update reservation status');
-    }
-  }
+class ReservationService extends BaseService {
+  static final String baseUrl = "${BaseService.baseUrl}/reservations";
 
   static Future<Reservation> getReservationById(int id) async {
-    final response = await http.get(Uri.parse('$url/$id'));
+    final response = await http.get(Uri.parse('$baseUrl/$id'));
 
     if (response.statusCode == 200) {
-      return Reservation.fromJson(jsonDecode(response.body));
+      dynamic body = jsonDecode(response.body);
+
+      return Reservation.fromJson(body);
     } else {
       throw Exception('Failed to load reservation');
     }
   }
 
-  static Future<List<Reservation>> getReservationsByHostId(int hostId) async {
-    final response = await http.get(Uri.parse('$url/host/$hostId'));
+  static Future<List<Reservation>> getReservationsByHostId(int id) async {
+    final response = await http.get(Uri.parse('$baseUrl/host/$id'));
 
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((reservation) => Reservation.fromJson(reservation)).toList();
+      List<dynamic> body = jsonDecode(response.body);
+
+      print("DEBUG");
+      print(body);
+      var reservations =
+          body.map((dynamic item) => Reservation.fromJson(item)).toList();
+
+      return reservations;
     } else {
-      throw Exception('Failed to load reservations by host ID');
+      return [];
     }
   }
 
-  static Future<List<Reservation>> getReservationsByGuestId(int guestId) async {
-    final response = await http.get(Uri.parse('$url/guest/$guestId'));
+  static Future<List<Reservation>> getReservationsByGuestId(int id) async {
+    final response = await http.get(Uri.parse('$baseUrl/guest/$id'));
 
     if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((reservation) => Reservation.fromJson(reservation)).toList();
+      // Depuración detallada
+      debugPrint("⚡️DEBUG - Respuesta original:");
+      debugPrint(response.body);
+
+      List<dynamic> body = jsonDecode(response.body);
+
+      debugPrint("⚡️DEBUG - Lista deserializada:");
+      debugPrint(body.toString()); // Corregido: usar toString() en lugar de casting
+
+      var reservations = <Reservation>[];
+
+      // Procesamiento de cada elemento
+      for (var item in body) {
+        try {
+          reservations.add(Reservation.fromJson(item));
+        } catch (e) {
+          debugPrint("⚡️ERROR procesando reservación: $e");
+        }
+      }
+
+      return reservations;
     } else {
-      throw Exception('Failed to load reservations by guest ID');
+      debugPrint("⚡️ERROR: Request falló con estado: ${response.statusCode}");
+      debugPrint("⚡️ERROR: Respuesta: ${response.body}");
+      return [];
     }
   }
 
-  static Future<List<Reservation>> getInProgressReservations() async {
-    final response = await http.get(Uri.parse('$url/inProgress'));
+  static Future createReservation(ReservationDto reservation) async {
+    final response = await http.post(
+      Uri.parse(baseUrl),
+      headers: <String, String>{
+        'Content-Type': 'application/json; charset=UTF-8',
+      },
+      body: jsonEncode(reservation.toJson()),
+    );
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((reservation) => Reservation.fromJson(reservation)).toList();
-    } else {
-      throw Exception('Failed to load in-progress reservations');
+    if (response.statusCode != 201) {
+      throw Exception('Failed to create reservation');
     }
   }
 
-  static Future<List<Reservation>> getUpComingReservations() async {
-    final response = await http.get(Uri.parse('$url/upComing'));
+  static Future cancelReservation(int id) async {
+    final response = await http.put(Uri.parse('$baseUrl/$id/status'),
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode({"status": "Cancelled"}));
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((reservation) => Reservation.fromJson(reservation)).toList();
-    } else {
-      throw Exception('Failed to load upcoming reservations');
+    if (response.statusCode != 200) {
+      throw Exception('Failed to cancel reservation');
     }
   }
 
-  static Future<List<Reservation>> getPastReservations() async {
-    final response = await http.get(Uri.parse('$url/past'));
+  static Future approveReservation(int id) async {
+    final response = await http.put(Uri.parse('$baseUrl/$id/status'),
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode({"status": "Approved"}));
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((reservation) => Reservation.fromJson(reservation)).toList();
-    } else {
-      throw Exception('Failed to load past reservations');
+    if (response.statusCode != 200) {
+      throw Exception('Failed to approve reservation');
+    }
+  }
+
+  static Future completeReservation(int id) async {
+    final response = await http.put(Uri.parse('$baseUrl/$id/status'),
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode({"status": "Completed"}));
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to complete reservation');
+    }
+  }
+
+  static Future startServiceReservation(int id) async {
+    final response = await http.put(Uri.parse('$baseUrl/$id/status'),
+        headers: {
+          'Content-Type': 'application/json; charset=UTF-8',
+        },
+        body: jsonEncode({"status": "InProgress"}));
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to start service reservation');
     }
   }
 }

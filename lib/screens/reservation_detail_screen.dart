@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:homeypark_mobile_application/model/model.dart';
+import 'package:homeypark_mobile_application/model/vehicle.dart';
 import 'package:homeypark_mobile_application/services/parking_service.dart';
 import 'package:homeypark_mobile_application/services/reservation_service.dart';
-import 'package:homeypark_mobile_application/widgets/reservation_badge_status.dart';
+import 'package:homeypark_mobile_application/services/vehicle_service.dart';
+import 'package:homeypark_mobile_application/widgets/widgets.dart';
 
 class ReservationDetailScreen extends StatefulWidget {
   final int id;
@@ -10,7 +13,8 @@ class ReservationDetailScreen extends StatefulWidget {
   const ReservationDetailScreen({super.key, required this.id});
 
   @override
-  State<ReservationDetailScreen> createState() => _ReservationDetailScreenState();
+  State<ReservationDetailScreen> createState() =>
+      _ReservationDetailScreenState();
 }
 
 class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
@@ -19,11 +23,12 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
   late ReservationStatus _status;
   late DateTime _createdDate;
   late TimeOfDay _startTime;
-  late DateTime _reservationDate;
+  late DateTime _startDateTime;
   late TimeOfDay _endTime;
+  late DateTime _endDateTime;
   late int _parkingId;
-  late double _totalFare;
   late int _vehicleId;
+  Vehicle? _vehicle;
 
   @override
   void initState() {
@@ -32,51 +37,45 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
   }
 
   void _fetchReservation() async {
-    try {
-      final reservation = await ReservationService.getReservationById(widget.id);
+    final reservation = await ReservationService.getReservationById(widget.id);
 
+    setState(() {
+      _loading = false;
+      _status = reservation.status;
+      _createdDate = reservation.createdAt;
+      _startDateTime = reservation.startDateTime;
+      _startTime = TimeOfDay(
+          hour: reservation.startDateTime.hour,
+          minute: reservation.startDateTime.minute);
+      _endDateTime = reservation.endDateTime;
+      _endTime = TimeOfDay(
+          hour: reservation.endDateTime.hour,
+          minute: reservation.endDateTime.minute);
+      _parkingId = reservation.parkingId;
+      _vehicleId = reservation.vehicleId;
+    });
+
+    // Cargar datos del vehículo
+    _loadVehicleData();
+  }
+
+  void _loadVehicleData() async {
+    final vehicle = await VehicleService.getVehicleById(_vehicleId);
+    if (vehicle != null) {
       setState(() {
-        _loading = false;
-        _status = ReservationStatus.values.firstWhere(
-              (e) => e.toString() == reservation.status.toString(),
-        );
-        _createdDate = reservation.createdAt;
-        _reservationDate = reservation.reservationDate;
-        _startTime = reservation.startTime;
-        _endTime = reservation.endTime;
-        _parkingId = reservation.parkingId;
-        _totalFare = reservation.totalFare;
-        _vehicleId = reservation.vehicleId;
+        _vehicle = vehicle;
       });
-    } catch (e) {
-      setState(() {
-        _loading = false;
-      });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading reservation: $e')),
-      );
     }
   }
 
   void _cancelReservation() async {
     Navigator.pop(context, "Ok");
 
-    try {
-      await ReservationService.updateReservationStatus(
-          widget.id, "CANCELLED");
+    await ReservationService.cancelReservation(widget.id);
 
-      setState(() {
-        _status = ReservationStatus.cancelled;
-      });
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reservation cancelled successfully')),
-      );
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error cancelling reservation: $e')),
-      );
-    }
+    setState(() {
+      _status = ReservationStatus.cancelled;
+    });
   }
 
   void _showCancelAlertDialog() {
@@ -110,11 +109,12 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
             FilledButton(
                 onPressed: _cancelReservation,
                 style: FilledButton.styleFrom(
-                  backgroundColor: theme.colorScheme.error,
+                  overlayColor: theme.colorScheme.error,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(8),
                     side: BorderSide(color: theme.colorScheme.error),
                   ),
+                  backgroundColor: theme.colorScheme.error,
                 ),
                 child: const Text("Cancelar")),
           ],
@@ -125,17 +125,12 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final day = _loading ? "" : _reservationDate.day.toString().padLeft(2, '0');
-    final month = _loading ? "" : _reservationDate.month.toString().padLeft(2, '0');
-    final year = _loading ? "" : _reservationDate.year.toString();
-    final dateStr = _loading ? "" : "$day/$month/$year";
-
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {
-            Navigator.pop(context, _loading ? null : _status);
+            Navigator.pop(context, _status);
           },
         ),
         title: Text(
@@ -166,43 +161,32 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
                   builder: (context, snapshot) {
                     if (snapshot.connectionState ==
                         ConnectionState.waiting) {
-                      return const SizedBox(
-                        height: 200,
-                        child: Center(child: CircularProgressIndicator()),
-                      );
+                      return const Center(
+                          child: CircularProgressIndicator());
                     }
 
-                    if (!snapshot.hasData || snapshot.hasError) {
-                      return const SizedBox(
-                        height: 200,
-                        child: Center(child: Text("Error loading parking information")),
-                      );
-                    }
+                    final apiKey = dotenv.env['MAPS_API_KEY'] ?? '';
+                    final location = snapshot.data!.location;
+                    final latitude = location.latitude;
+                    final longitude = location.longitude;
 
-                    final parking = snapshot.data!;
-                    final latitude = parking.location.latitude;
-                    final longitude = parking.location.longitude;
-
-                    // Use a placeholder image instead of Google Maps API
                     return Stack(
                       children: [
-                        Container(
+                        Image.network(
+                          "https://maps.googleapis.com/maps/api/streetview?size=600x400&location=$latitude,$longitude&key=$apiKey",
+                          fit: BoxFit.cover,
                           height: 200,
                           width: double.infinity,
-                          color: Colors.grey[300],
-                          child: const Center(
-                            child: Icon(Icons.location_on, size: 48),
-                          ),
                         ),
                         Container(
                           width: double.infinity,
                           height: 200,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             gradient: LinearGradient(
                               begin: Alignment.bottomCenter,
                               end: Alignment.topCenter,
                               colors: [
-                                Colors.black.withOpacity(0.6),
+                                Color.fromRGBO(0, 0, 0, 0.6),
                                 Colors.transparent,
                               ],
                             ),
@@ -215,7 +199,7 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                "${parking.location.address} ${parking.location.numDirection}",
+                                "${location.address} ${location.numDirection}",
                                 style: theme.textTheme.titleMedium
                                     ?.copyWith(
                                     color: Colors.white,
@@ -223,7 +207,7 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                "${parking.location.district}, ${parking.location.street}, ${parking.location.city}",
+                                "${location.district}, ${location.street}, ${location.city}",
                                 style: theme.textTheme.labelMedium
                                     ?.copyWith(color: Colors.white),
                               ),
@@ -235,21 +219,16 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
                   }),
             ),
             const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
+            CardWithHeader(
+                headerTextStr: "Horario",
+                body: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Horario",
-                        style: theme.textTheme.titleMedium
-                            ?.apply(color: theme.colorScheme.primary)),
-                    const Divider(),
                     Text("Creado:",
                         style: theme.textTheme.labelMedium
                             ?.apply(color: theme.colorScheme.onSurface)),
                     Text(
-                        "${_createdDate.day}/${_createdDate.month}/${_createdDate.year} ${_createdDate.hour.toString().padLeft(2, "0")}:${_createdDate.minute.toString().padLeft(2, "0")}",
+                        "${_createdDate.day}/${_createdDate.month}/${_createdDate.year} ${_createdDate.hour.toString().padLeft(2, "0")}:${_createdDate.minute.toString().padLeft(2, "0")}:${_createdDate.second.toString().padLeft(2, "0")}",
                         style: theme.textTheme.bodySmall
                             ?.apply(color: theme.colorScheme.onSurface)),
                     const SizedBox(height: 20),
@@ -257,28 +236,21 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
                         style: theme.textTheme.labelMedium
                             ?.apply(color: theme.colorScheme.onSurface)),
                     Text(
-                        "Desde: ${_startTime.format(context)} - $dateStr",
+                        "Desde: ${_startTime.format(context).toString()} - ${_startDateTime.day}/${_startDateTime.month}/${_startDateTime.year}",
                         style: theme.textTheme.bodySmall
                             ?.apply(color: theme.colorScheme.onSurface)),
                     Text(
-                        "Hasta: ${_endTime.format(context)} - $dateStr",
+                        "Hasta: ${_endTime.format(context).toString()} - ${_endDateTime.day}/${_endDateTime.month}/${_endDateTime.year}",
                         style: theme.textTheme.bodySmall
                             ?.apply(color: theme.colorScheme.onSurface)),
                   ],
-                ),
-              ),
-            ),
+                )),
             const SizedBox(height: 16),
-            Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16.0),
-                child: Column(
+            CardWithHeader(
+                headerTextStr: "Información adicional",
+                body: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text("Información adicional",
-                        style: theme.textTheme.titleMedium
-                            ?.apply(color: theme.colorScheme.primary)),
-                    const Divider(),
                     Row(
                       children: [
                         const Icon(Icons.directions_car_outlined),
@@ -286,67 +258,46 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text("Vehicle ID: $_vehicleId",
+                            Text(_vehicle?.licensePlate ?? "Cargando...",
                                 style: theme.textTheme.labelMedium?.apply(
                                   color: theme.colorScheme.onSurface,
                                 )),
-                          ],
-                        )
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        const Icon(Icons.payment),
-                        const SizedBox(width: 8),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text("Total Fare: \$${_totalFare.toStringAsFixed(2)}",
-                                style: theme.textTheme.labelMedium?.apply(
-                                  color: theme.colorScheme.onSurface,
-                                )),
+                            Text(
+                                _vehicle != null
+                                    ? "${_vehicle!.brand} ${_vehicle!.model}"
+                                    : "Cargando...",
+                                style: theme.textTheme.labelSmall?.apply(
+                                    color: theme.colorScheme.onSurfaceVariant)),
                           ],
                         )
                       ],
                     ),
                   ],
-                ),
-              ),
-            ),
+                )),
             const SizedBox(height: 16),
             if (_status == ReservationStatus.pending)
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text("Cancelar reserva",
-                          style: theme.textTheme.titleMedium
-                              ?.apply(color: theme.colorScheme.primary)),
-                      const Divider(),
-                      Text(
-                        "Puedes cancelar tu reserva hasta 6 horas antes de la hora programada para recibir un reembolso completo del pago realizado.",
-                        style: theme.textTheme.bodySmall?.apply(
-                            color: theme.colorScheme.onSurfaceVariant),
-                      ),
-                      const SizedBox(height: 16),
-                      OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            side: BorderSide(color: theme.colorScheme.error),
-                            minimumSize: const Size(double.infinity, 40),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(8)),
-                          ),
-                          onPressed: _showCancelAlertDialog,
-                          child: Text(
-                            "Cancelar reserva",
-                            style: TextStyle(color: theme.colorScheme.error),
-                          )),
-                    ],
+              CardWithHeader(
+                headerTextStr: "Cancelar reserva",
+                body: Column(children: [
+                  Text(
+                    "Puedes cancelar tu reserva hasta 6 horas antes de la hora programada para recibir un reembolso completo del pago realizado.",
+                    style: theme.textTheme.bodySmall?.apply(
+                        color: theme.colorScheme.onSurfaceVariant),
                   ),
-                ),
+                  const SizedBox(height: 16),
+                  OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(color: theme.colorScheme.error),
+                        minimumSize: const Size(double.infinity, 40),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: _showCancelAlertDialog,
+                      child: Text(
+                        "Cancelar reserva",
+                        style: TextStyle(color: theme.colorScheme.error),
+                      )),
+                ]),
               ),
           ],
         ),

@@ -1,42 +1,85 @@
 import 'package:flutter/material.dart';
-import '../model/reservation_status.dart ';
-import 'reservation_badge_status.dart';
+import 'package:homeypark_mobile_application/model/model.dart';
+import 'package:homeypark_mobile_application/widgets/widgets.dart';
 import '../model/reservation.dart';
 
 class ReservationCard extends StatelessWidget {
-  final Reservation reservation;
+  final int id;
+  final String address;
+  final String number;
+  final DateTime date;
+  final TimeOfDay startTime;
+  final TimeOfDay endTime;
+  final ReservationStatus status;
+  final Reservation? reservation;
   final Function(int)? onTapReservation;
+  final bool? hasAction;
   final Function(int)? onCancel;
   final Function(int)? onAccept;
   final List<Widget>? actions;
 
   const ReservationCard({
-    Key? key,
-    required this.reservation,
+    super.key,
+    required this.id,
+    required this.address,
+    required this.number,
+    required this.date,
+    required this.startTime,
+    required this.endTime,
+    required this.status,
+    this.reservation,
+    this.hasAction = false,
     this.onTapReservation,
     this.onCancel,
     this.onAccept,
     this.actions,
-  }) : super(key: key);
+  });
+
+  factory ReservationCard.fromReservation({
+    required Reservation reservation,
+    required String address,
+    required String number,
+    bool? hasAction,
+    Function(int)? onTapReservation,
+    Function(int)? onCancel,
+    Function(int)? onAccept,
+    List<Widget>? actions,
+  }) {
+    return ReservationCard(
+      id: reservation.id,
+      address: address,
+      number: number,
+      date: reservation.reservationDate,
+      startTime: TimeOfDay.fromDateTime(reservation.startTime.toDateTime()),
+      endTime: TimeOfDay.fromDateTime(reservation.endTime.toDateTime()),
+      status: reservation.status,
+      reservation: reservation,
+      hasAction: hasAction,
+      onTapReservation: onTapReservation,
+      onCancel: onCancel,
+      onAccept: onAccept,
+      actions: actions,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final day = reservation.reservationDate.day.toString().padLeft(2, '0');
-    final month = reservation.reservationDate.month.toString().padLeft(2, '0');
-    final dateStr = "$day/$month/${reservation.reservationDate.year}";
+    final day = date.day.toString().padLeft(2, '0');
+    final month = date.month.toString().padLeft(2, '0');
+    final dateStr = "$day/$month/${date.year}";
 
     return GestureDetector(
       onTap: () {
-        onTapReservation?.call(reservation.id);
+        onTapReservation?.call(id);
       },
       child: Card(
         color: Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(6),
         ),
-        shadowColor: theme.colorScheme.primary.withOpacity(0.6),
+        shadowColor: theme.colorScheme.primary.withAlpha(153) ?? Colors.grey.withAlpha(153),
         child: Padding(
           padding: const EdgeInsets.all(16.0),
           child: Column(
@@ -48,88 +91,70 @@ class ReservationCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text("Reservation ID: #${reservation.id.toString().padLeft(7, "0")}",
+                        Text("$address $number",
                             style: theme.textTheme.bodyLarge
                                 ?.apply(color: theme.colorScheme.onSurface),
                             overflow: TextOverflow.ellipsis),
-                        Text("Parking ID: ${reservation.parkingId}",
+                        Text("#${id.toString().padLeft(7, "0")}",
                             style: theme.textTheme.bodyMedium?.apply(
                                 color: theme.colorScheme.onSurfaceVariant),
                             overflow: TextOverflow.ellipsis),
+                        if (reservation != null) ...[
+                          Text(
+                            "${reservation!.hoursRegistered} hora${reservation!.hoursRegistered > 1 ? 's' : ''} • S/ ${reservation!.totalFare.toStringAsFixed(2)}",
+                            style: theme.textTheme.bodySmall?.apply(
+                                color: theme.colorScheme.onSurfaceVariant),
+                          ),
+                        ],
                       ],
                     ),
                   ),
                   const Spacer(),
-                  ReservationBadgeStatus(
-                    status: reservation.status,
-                  ),
+                  ReservationBadgeStatus(status: status),
                 ],
               ),
               const SizedBox(height: 8),
-              Text("Guest ID: ${reservation.guestId}",
-                  style: theme.textTheme.bodyMedium
-                      ?.apply(color: theme.colorScheme.onSurface)),
-              Text("Host ID: ${reservation.hostId}",
-                  style: theme.textTheme.bodyMedium
-                      ?.apply(color: theme.colorScheme.onSurface)),
-              const SizedBox(height: 8),
               Container(
-                padding:
-                const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                decoration: BoxDecoration(
-                  color: const Color.fromRGBO(248, 249, 250, 1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(
-                  children: [
-                    Text("Desde:",
-                        style: theme.textTheme.bodySmall
-                            ?.apply(color: theme.colorScheme.onSurface)),
-                    const SizedBox(width: 12),
-                    Text(
-                        "${reservation.startTime.format(context)} - $dateStr",
-                        style: theme.textTheme.bodySmall
-                            ?.apply(color: theme.colorScheme.onSurface)),
-                  ],
-                ),
-              ),
+                  padding:
+                  const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: const Color.fromRGBO(248, 249, 250, 1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      Text("Desde:",
+                          style: theme.textTheme.bodySmall
+                              ?.apply(color: theme.colorScheme.onSurface)),
+                      const SizedBox(width: 12),
+                      Text("${startTime.format(context).toString()} - $dateStr",
+                          style: theme.textTheme.bodySmall
+                              ?.apply(color: theme.colorScheme.onSurface)),
+                    ],
+                  )),
               const SizedBox(height: 4),
               Container(
-                padding:
-                const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                decoration: BoxDecoration(
-                  color: const Color.fromRGBO(248, 249, 250, 1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(
-                  children: [
-                    Text("Hasta:",
-                        style: theme.textTheme.bodySmall
-                            ?.apply(color: theme.colorScheme.onSurface)),
-                    const SizedBox(width: 12),
-                    Text(
-                        "${reservation.endTime.format(context)} - $dateStr",
-                        style: theme.textTheme.bodySmall
-                            ?.apply(color: theme.colorScheme.onSurface)),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text("Total Fare: \$${reservation.totalFare.toStringAsFixed(2)}",
-                  style: theme.textTheme.bodyMedium
-                      ?.apply(color: theme.colorScheme.onSurface)),
-              Text("Payment Receipt URL: ${reservation.paymentReceiptUrl}",
-                  style: theme.textTheme.bodySmall
-                      ?.apply(color: theme.colorScheme.onSurface),
-                  overflow: TextOverflow.ellipsis),
-              Text("Payment Receipt Delete URL: ${reservation.paymentReceiptDeleteUrl}",
-                  style: theme.textTheme.bodySmall
-                      ?.apply(color: theme.colorScheme.onSurface),
-                  overflow: TextOverflow.ellipsis),
-              if (actions != null && actions!.isNotEmpty) ...[
+                  padding:
+                  const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                  decoration: BoxDecoration(
+                    color: const Color.fromRGBO(248, 249, 250, 1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      Text("Hasta:",
+                          style: theme.textTheme.bodySmall
+                              ?.apply(color: theme.colorScheme.onSurface)),
+                      const SizedBox(width: 12),
+                      Text("${endTime.format(context).toString()} - $dateStr",
+                          style: theme.textTheme.bodySmall
+                              ?.apply(color: theme.colorScheme.onSurface)),
+                    ],
+                  )),
+              if (hasAction ?? false) ...[
                 const SizedBox(height: 8),
-                Row(children: actions!),
-              ],
+                Row(children: actions ?? [])
+              ]
             ],
           ),
         ),

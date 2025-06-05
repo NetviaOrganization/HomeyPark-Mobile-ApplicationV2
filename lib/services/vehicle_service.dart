@@ -1,83 +1,40 @@
 import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:homeypark_mobile_application/model/vehicle.dart';
+import 'package:homeypark_mobile_application/services/base_service.dart';
 
-import '../model/vehicle.dart';
-import 'base_service.dart';
+class VehicleService extends BaseService {
+  static final String baseUrl = "${BaseService.baseUrl}/vehicles";
 
-class VehicleService {
-  static final String url = "${BaseService.baseUrl}/vehicles";
+  static Future<Vehicle?> getVehicleById(int id) async {
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/$id'));
 
-  static Future<Vehicle> getVehicleById(int id) async {
-    final response = await http.get(Uri.parse('$url/$id'));
-
-    if (response.statusCode == 200) {
-      return Vehicle.fromJson(jsonDecode(response.body));
-    } else {
-      throw Exception('Failed to load vehicle');
+      if (response.statusCode == 200) {
+        dynamic body = jsonDecode(response.body);
+        return Vehicle.fromJson(body);
+      } else {
+        debugPrint("Error obteniendo vehículo: ${response.statusCode}");
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Excepción obteniendo vehículo: $e");
+      return null;
     }
   }
 
   static Future<List<Vehicle>> getVehiclesByUserId(int userId) async {
-    final response = await http.get(Uri.parse('$url/user/$userId'));
+    try {
+      final response = await http.get(Uri.parse('$baseUrl/user/$userId'));
 
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((vehicle) => Vehicle.fromJson(vehicle)).toList();
-    } else {
-      throw Exception('Failed to load vehicles');
+      if (response.statusCode == 200) {
+        List<dynamic> body = jsonDecode(response.body);
+        return body.map((item) => Vehicle.fromJson(item)).toList();
+      }
+    } catch (e) {
+      debugPrint("Error obteniendo vehículos del usuario: $e");
     }
-  }
-
-  static Future<List<Vehicle>> getAllVehicles() async {
-    final response = await http.get(Uri.parse(url));
-
-    if (response.statusCode == 200) {
-      final List<dynamic> data = jsonDecode(response.body);
-      return data.map((vehicle) => Vehicle.fromJson(vehicle)).toList();
-    } else {
-      throw Exception('Failed to load all vehicles');
-    }
-  }
-
-  static Future<Vehicle?> createVehicle(Vehicle newVehicle) async {
-    final response = await http.post(
-      Uri.parse('$url/create'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(newVehicle.toJson()),
-    );
-
-    if (response.statusCode == 201) {
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      return Vehicle.fromJson(data);
-    } else {
-      throw Exception('Failed to create vehicle');
-    }
-  }
-
-  static Future<Vehicle?> updateVehicle(Vehicle updatedVehicle) async {
-    final response = await http.put(
-      Uri.parse('$url/update/${updatedVehicle.id}'),
-      headers: <String, String>{
-        'Content-Type': 'application/json; charset=UTF-8',
-      },
-      body: jsonEncode(updatedVehicle.toJson()),
-    );
-
-    if (response.statusCode == 200) {
-      final Map<String, dynamic> data = jsonDecode(response.body);
-      return Vehicle.fromJson(data);
-    } else {
-      throw Exception('Failed to update vehicle');
-    }
-  }
-
-  static Future<void> deleteVehicle(int id) async {
-    final response = await http.delete(Uri.parse('$url/delete/$id'));
-
-    if (response.statusCode != 204) {
-      throw Exception('Failed to delete vehicle');
-    }
+    return [];
   }
 }

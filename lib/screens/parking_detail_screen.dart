@@ -2,11 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:homeypark_mobile_application/model/parking.dart';
 import 'package:homeypark_mobile_application/services/parking_service.dart';
+import 'package:homeypark_mobile_application/services/profile_service.dart';
+import 'package:homeypark_mobile_application/model/profile.dart';
 
 class ParkingDetailScreen extends StatelessWidget {
   final int parkingId;
 
   const ParkingDetailScreen({super.key, required this.parkingId});
+
+  String _getMonthName(int month) {
+    const months = [
+      "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+      "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    ];
+    return months[month];
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -74,7 +84,7 @@ class ParkingDetailScreen extends StatelessWidget {
                             begin: Alignment.bottomCenter,
                             end: Alignment.topCenter,
                             colors: [
-                              Colors.black.withValues(alpha: 0.6),
+                              Color.fromRGBO(0, 0, 0, 0.6),
                               Colors.transparent,
                             ],
                           ),
@@ -171,19 +181,35 @@ class ParkingDetailScreen extends StatelessWidget {
                                   },
                                 ),
                                 const SizedBox(width: 16),
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      "${parking.profileId} ${parking.profileId}",
-                                      style: theme.textTheme.labelLarge,
-                                    ),
-                                    Text(
-                                      "Se unió a HomeyPark desde 22 Octubre, 2024",
-                                      style: theme.textTheme.bodySmall,
-                                    ),
-                                  ],
-                                )
+                                FutureBuilder<Profile?>(
+                                    future: ProfileService.getProfileById(parking.profileId),
+                                    builder: (context, profileSnapshot) {
+                                      if (profileSnapshot.connectionState == ConnectionState.waiting) {
+                                        return const Text("Cargando datos del propietario...");
+                                      }
+
+                                      if (!profileSnapshot.hasData) {
+                                        return const Text("Información del propietario no disponible");
+                                      }
+
+                                      final profile = profileSnapshot.data!;
+                                      final ownerName = "${profile.firstName} ${profile.lastName}";
+
+                                      return Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            ownerName,
+                                            style: theme.textTheme.labelLarge,
+                                          ),
+                                          Text(
+                                            "Se unió a HomeyPark desde ${profile.createdAt.day} ${_getMonthName(profile.createdAt.month)}, ${profile.createdAt.year}",
+                                            style: theme.textTheme.bodySmall,
+                                          ),
+                                        ],
+                                      );
+                                    }
+                                ),
                               ],
                             )
                           ],
@@ -214,21 +240,29 @@ class ParkingDetailScreen extends StatelessWidget {
             }),
       ),
       bottomSheet: Container(
-        width: double.infinity,
-        height: 240,
+        padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-            colors: [
-              Colors.black.withValues(alpha: 0.6),
-              Colors.transparent,
-            ],
+          color: Colors.white,
+          boxShadow: [
+            BoxShadow(  color: Color.fromRGBO(0,0,0, 0.1,),
+              blurRadius: 16,
+            ),
+          ],
+        ),
+        width: double.infinity,
+        child: FilledButton(
+          onPressed: () {
+          },
+          style: ButtonStyle(
+            shape: WidgetStateProperty.all(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
           ),
+          child: const Text("Reservar"),
         ),
       ),
-
-
     );
   }
 }

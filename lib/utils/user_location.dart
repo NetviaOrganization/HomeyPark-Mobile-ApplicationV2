@@ -19,10 +19,8 @@ Future<Position> getUserLocation() async {
   }
 
   if (permission == LocationPermission.deniedForever) {
-    // Permissions are denied forever
     return Future.error('Location permissions are permanently denied.');
   }
 
-  // If permissions are granted, get the location
   return await Geolocator.getCurrentPosition();
 }
