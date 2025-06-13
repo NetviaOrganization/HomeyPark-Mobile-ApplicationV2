@@ -18,15 +18,11 @@ class PlaceAutocomplete {
 }
 
 class PlaceDetails {
-  final double lat;
-  final double lng;
-  final String formattedAddress;
+  final String? address;
+  final double? latitude;
+  final double? longitude;
 
-  PlaceDetails({
-    required this.lat,
-    required this.lng,
-    required this.formattedAddress
-  });
+  PlaceDetails({this.address, this.latitude, this.longitude, required formattedAddress, required lat, required lng});
 }
 
 class PlacesService {

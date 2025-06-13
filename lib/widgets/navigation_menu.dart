@@ -54,7 +54,7 @@ class _NavigationMenuState extends State<NavigationMenu> {
       case 2:
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => const ReservationsScreen()),
+          MaterialPageRoute(builder: (context) => const MyGaragesScreen()), // Nueva pantalla
         );
         break;
       case 3:

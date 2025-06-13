@@ -4,6 +4,7 @@ import 'package:homeypark_mobile_application/model/parking.dart';
 import 'package:homeypark_mobile_application/services/parking_service.dart';
 import 'package:homeypark_mobile_application/services/profile_service.dart';
 import 'package:homeypark_mobile_application/model/profile.dart';
+import 'package:homeypark_mobile_application/screens/reservation_form_screen.dart';
 
 class ParkingDetailScreen extends StatelessWidget {
   final int parkingId;
@@ -252,6 +253,12 @@ class ParkingDetailScreen extends StatelessWidget {
         width: double.infinity,
         child: FilledButton(
           onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ReservationFormScreen(parking: parking),
+              ),
+            );
           },
           style: ButtonStyle(
             shape: WidgetStateProperty.all(
