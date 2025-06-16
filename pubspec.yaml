@@ -32,8 +32,10 @@ dependencies:
     sdk: flutter
   http: ^1.2.2
   google_fonts: ^6.2.1
-
-
+  crypto: ^3.0.3
+  provider: ^6.1.5
+  flutter_recaptcha_v2_compat: ^1.0.5
+  flutter_inappwebview: ^5.7.2+3
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
@@ -42,6 +44,7 @@ dependencies:
   webview_flutter: ^4.10.0
   flutter_dotenv: ^5.2.1
   shared_preferences: ^2.3.3
+  
 
 dev_dependencies:
   flutter_native_splash: ^2.0.5
@@ -62,7 +65,8 @@ dev_dependencies:
 flutter:
   assets:
     - .env
-
+    - assets/images/
+    - assets/recaptcha.html
   # The following line ensures that the Material Icons font is
   # included with your application, so that you can use the icons in
   # the material Icons class.
