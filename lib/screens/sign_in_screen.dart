@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_recaptcha_v2_compat/flutter_recaptcha_v2_compat.dart';
+// 1. Importa el paquete correcto de reCAPTCHA
+import 'package:flutter_easy_recaptcha_v2/flutter_easy_recaptcha_v2.dart';
 
 import 'package:homeypark_mobile_application/services/iam_service.dart';
 import 'package:homeypark_mobile_application/model/user_model.dart';
@@ -20,9 +21,6 @@ class _SignInScreenState extends State<SignInScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
-  bool _isCaptchaVisible = false;
-
-  final RecaptchaV2Controller _recaptchaV2Controller = RecaptchaV2Controller();
 
   @override
   void dispose() {
@@ -31,18 +29,73 @@ class _SignInScreenState extends State<SignInScreen> {
     super.dispose();
   }
 
+  // 2. Este método ahora coordina la validación y la llamada al reCAPTCHA
   Future<void> _handleSignIn() async {
+    // Oculta el teclado para una mejor experiencia de usuario
     FocusScope.of(context).unfocus();
-    if (!(_formKey.currentState?.validate() ?? false)) return;
-    setState(() => _isCaptchaVisible = true);
+    // Valida el formulario antes de continuar
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    
+    // Muestra el reCAPTCHA usando el método del bottom sheet
+    _showRecaptchaBottomSheet();
+  }
+  
+  // 3. Lógica para mostrar el Modal Bottom Sheet con el reCAPTCHA
+  void _showRecaptchaBottomSheet() {
+    final recaptchaSiteKey = dotenv.env['RECAPTCHA_SITE_KEY'];
+    if (recaptchaSiteKey == null) {
+      _onRecaptchaError("La clave del sitio reCAPTCHA no está configurada.");
+      return;
+    }
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // Permite que el sheet ocupe más espacio vertical
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return SizedBox(
+          // Ocupa el 80% de la altura de la pantalla para dar espacio suficiente
+          height: MediaQuery.of(context).size.height * 0.8,
+          child: Column(
+            children: [
+              // Botón para cerrar manualmente el modal
+              Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+              // El widget de reCAPTCHA ocupa el espacio restante
+              Expanded(
+                child: RecaptchaV2(
+                  apiKey: recaptchaSiteKey,
+                  // El único callback necesario, se activa al tener éxito
+                  onVerifiedSuccessfully: (String token) {
+                    Navigator.pop(context); // Cierra el bottom sheet
+                    _signInWithToken(token); // Procesa el token obtenido
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   void _navigateToSignUp() {
+    Provider.of<IAMService>(context, listen: false).clearErrorMessage();
     Navigator.of(context).push(
       MaterialPageRoute(builder: (context) => const SignUpScreen()),
     );
   }
 
+  // Método que se llama con el token después de una verificación exitosa
   Future<void> _signInWithToken(String token) async {
     final signInData = SignInData(
       email: _emailController.text.trim(),
@@ -53,88 +106,41 @@ class _SignInScreenState extends State<SignInScreen> {
     await iamService.signIn(signInData);
   }
 
-  // This method will now be used for the onVerifiedError callback
+  // Método genérico para manejar errores de reCAPTCHA
   void _onRecaptchaError(String? error) {
-    if (mounted) setState(() => _isCaptchaVisible = false);
     debugPrint('reCAPTCHA Error: $error');
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Verification error. Please try again.')),
+      SnackBar(content: Text(error ?? 'Error de verificación. Por favor, intenta de nuevo.')),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final recaptchaSiteKey = dotenv.env['RECAPTCHA_SITE_KEY'];
-    final recaptchaSecretKey = dotenv.env['RECAPTCHA_SECRET_KEY'];
-
-    if (recaptchaSiteKey == null || recaptchaSecretKey == null) {
-      return const Scaffold(body: Center(child: Text('Error: reCAPTCHA API keys not found.')));
-    }
-
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            SingleChildScrollView(
-              padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildHeader(),
-                  const SizedBox(height: 48),
-                  _buildForm(),
-                  const SizedBox(height: 24),
-                  AuthLinkText(text: '¿No tienes una cuenta? ', linkText: 'Regístrate', onTap: _navigateToSignUp),
-                ],
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 48),
+              _buildForm(),
+              const SizedBox(height: 24),
+              AuthLinkText(
+                text: '¿No tienes una cuenta? ',
+                linkText: 'Regístrate',
+                onTap: _navigateToSignUp,
               ),
-            ),
-            Visibility(
-              visible: _isCaptchaVisible,
-              child: RecaptchaV2(
-                apiKey: recaptchaSiteKey,
-                apiSecret: recaptchaSecretKey,
-                controller: _recaptchaV2Controller,
-                pluginURL: "https://www.google.com/recaptcha/api2/demo",
-
-                // --- THE CORRECTED CALLBACK IMPLEMENTATION ---
-
-                // The correct parameter name for the success callback is `onVerified`.
-                // It directly provides the verification token as a String.
-                 onVerifiedSuccessfully: (bool isSuccess) {
-                  // This callback's only job is to hide the captcha view.
-                  if (mounted) setState(() => _isCaptchaVisible = false);
-                },
-
-                // 2. Use onVerifiedError to GET THE TOKEN or THE ERROR MESSAGE.
-                //    This is the primary data callback, despite its confusing name.
-                onVerifiedError: (String? data) {
-                  // The plugin sends the token on success and an error string on failure
-                  // to this same callback.
-                  if (data != null && data.startsWith("err_")) {
-                    // It's an error.
-                    _onRecaptchaError(data);
-                  } else {
-                    // It's a token!
-                    final String token = data ?? "";
-                    if (token.isNotEmpty) {
-                      _signInWithToken(token);
-                    } else {
-                       _onRecaptchaError("Verification returned empty data.");
-                    }
-                  }
-                },
-              ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // No changes needed below this line
   Widget _buildHeader() {
     return Column(
       children: [

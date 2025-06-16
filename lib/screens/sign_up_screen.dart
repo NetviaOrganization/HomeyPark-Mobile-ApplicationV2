@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
-import 'package:flutter_recaptcha_v2_compat/flutter_recaptcha_v2_compat.dart';
-import 'package:flutter_inappwebview/flutter_inappwebview.dart'; // Import the in-app webview package
+// 1. Importa el paquete correcto de reCAPTCHA
+import 'package:flutter_easy_recaptcha_v2/flutter_easy_recaptcha_v2.dart';
 
 import 'package:homeypark_mobile_application/services/iam_service.dart';
 import 'package:homeypark_mobile_application/model/user_model.dart';
 import 'package:homeypark_mobile_application/widgets/auth_widget.dart';
-
-// --- Best Practice: Manage the server instance ---
-final InAppLocalhostServer _localhostServer = InAppLocalhostServer();
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -28,34 +25,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
-  bool _isRecaptchaVerified = false;
-  String? _recaptchaToken;
-  bool _isServerRunning = false;
-
-  final RecaptchaV2Controller _recaptchaV2Controller = RecaptchaV2Controller();
-
-  // --- Best Practice: Define constants for paths and URLs ---
-  static const String _kRecaptchaHtmlPath = 'assets/recaptcha.html';
-  static const String _kRecaptchaURL = 'http://localhost:8080/assets/recaptcha.html';
-
-  @override
-  void initState() {
-    super.initState();
-    _startServer();
-  }
-
-  /// Starts the in-app localhost server if it's not already running.
-  Future<void> _startServer() async {
-    if (!_localhostServer.isRunning()) {
-      await _localhostServer.start();
-    }
-    if (mounted) {
-      setState(() {
-        _isServerRunning = true;
-      });
-    }
-  }
-
   @override
   void dispose() {
     _nameController.dispose();
@@ -65,21 +34,67 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
+  // 2. Este método ahora coordina la validación y la llamada al reCAPTCHA
   Future<void> _handleSignUp() async {
     FocusScope.of(context).unfocus();
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+    _showRecaptchaBottomSheet();
+  }
 
-    if (!_isRecaptchaVerified || _recaptchaToken == null) {
-      _onRecaptchaError("Por favor completa la verificación reCAPTCHA.");
+  // 3. Lógica para mostrar el Modal Bottom Sheet, idéntica a la de SignInScreen
+  void _showRecaptchaBottomSheet() {
+    final recaptchaSiteKey = dotenv.env['RECAPTCHA_SITE_KEY'];
+    if (recaptchaSiteKey == null) {
+      _onRecaptchaError("La clave del sitio reCAPTCHA no está configurada.");
       return;
     }
 
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.8,
+          child: Column(
+            children: [
+              Align(
+                alignment: Alignment.topRight,
+                child: IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+              Expanded(
+                child: RecaptchaV2(
+                  apiKey: recaptchaSiteKey,
+                  // El único callback necesario, se activa al tener éxito
+                  onVerifiedSuccessfully: (String token) {
+                    Navigator.pop(context); // Cierra el bottom sheet
+                    // La única diferencia es que llamamos al método de registro
+                    _signUpWithToken(token); 
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Método que se llama con el token después de una verificación exitosa
+  Future<void> _signUpWithToken(String token) async {
     final signUpData = SignUpData(
       name: _nameController.text.trim(),
       email: _emailController.text.trim(),
       password: _passwordController.text,
       confirmPassword: _confirmPasswordController.text,
-      recaptchaToken: _recaptchaToken!,
+      recaptchaToken: token,
     );
 
     final iamService = Provider.of<IAMService>(context, listen: false);
@@ -96,15 +111,12 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  // Método genérico para manejar errores de reCAPTCHA
   void _onRecaptchaError(String? error) {
     debugPrint('reCAPTCHA Error: $error');
     if (!mounted) return;
-    setState(() {
-      _isRecaptchaVerified = false;
-      _recaptchaToken = null;
-    });
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error ?? 'Verification error. Please try again.')),
+      SnackBar(content: Text(error ?? 'Error de verificación. Por favor, intenta de nuevo.')),
     );
   }
 
@@ -120,26 +132,23 @@ class _SignUpScreenState extends State<SignUpScreen> {
         centerTitle: true,
       ),
       body: SafeArea(
-        // Show a loading indicator while the server starts, then show the form.
-        child: _isServerRunning
-            ? SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildHeader(),
-                    const SizedBox(height: 32),
-                    _buildForm(),
-                    const SizedBox(height: 24),
-                    AuthLinkText(
-                      text: '¿Ya tienes una cuenta? ',
-                      linkText: 'Inicia Sesión',
-                      onTap: () => Navigator.of(context).pop(),
-                    ),
-                  ],
-                ),
-              )
-            : const Center(child: CircularProgressIndicator()),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _buildHeader(),
+              const SizedBox(height: 32),
+              _buildForm(),
+              const SizedBox(height: 24),
+              AuthLinkText(
+                text: '¿Ya tienes una cuenta? ',
+                linkText: 'Inicia Sesión',
+                onTap: () => Navigator.of(context).pop(),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -149,7 +158,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       children: [
         Image.asset('assets/images/logo.png', height: 80),
         const SizedBox(height: 16),
-        const Text( 'Únete a la comunidad', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.darkText), textAlign: TextAlign.center),
+        const Text('Únete a la comunidad', style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: AppColors.darkText), textAlign: TextAlign.center),
         const SizedBox(height: 8),
         const Text('Crea tu cuenta para comenzar', style: TextStyle(fontSize: 16, color: AppColors.subtleText), textAlign: TextAlign.center),
       ],
@@ -157,32 +166,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
   }
 
   Widget _buildForm() {
-    final recaptchaSiteKey = dotenv.env['RECAPTCHA_SITE_KEY'];
-    final recaptchaSecretKey = dotenv.env['RECAPTCHA_SECRET_KEY'];
-
-    if (recaptchaSiteKey == null || recaptchaSecretKey == null) {
-      return const Center(child: Text("reCAPTCHA keys not configured."));
-    }
-
     return Form(
       key: _formKey,
       child: Column(
         children: [
-          CustomTextFormField(
-            controller: _nameController,
-            labelText: 'Nombre Completo',
-            iconData: Icons.person_outline,
-            textCapitalization: TextCapitalization.words,
-            validator: (value) => (value?.trim().length ?? 0) < 2 ? 'El nombre debe tener al menos 2 caracteres' : null,
-          ),
+          CustomTextFormField(controller: _nameController, labelText: 'Nombre Completo', iconData: Icons.person_outline, textCapitalization: TextCapitalization.words, validator: (value) => (value?.trim().length ?? 0) < 3 ? 'El nombre debe tener al menos 3 caracteres' : null),
           const SizedBox(height: 16),
-          CustomTextFormField(
-            controller: _emailController,
-            labelText: 'Email',
-            iconData: Icons.email_outlined,
-            keyboardType: TextInputType.emailAddress,
-            validator: (value) => (value != null && RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) ? null : 'Por favor ingresa un email válido',
-          ),
+          CustomTextFormField(controller: _emailController, labelText: 'Email', iconData: Icons.email_outlined, keyboardType: TextInputType.emailAddress, validator: (value) => (value != null && RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) ? null : 'Por favor ingresa un email válido'),
           const SizedBox(height: 16),
           CustomTextFormField(
             controller: _passwordController,
@@ -191,7 +181,33 @@ class _SignUpScreenState extends State<SignUpScreen> {
             isPassword: true,
             obscureText: _obscurePassword,
             toggleObscureText: () => setState(() => _obscurePassword = !_obscurePassword),
-            validator: (value) => (value?.length ?? 0) < 6 ? 'La contraseña debe tener al menos 6 caracteres' : null,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Por favor ingresa una contraseña';
+              }
+              // Verificación de 8 caracteres
+              if (value.length < 8) {
+                return 'La contraseña debe tener al menos 8 caracteres';
+              }
+              // Verificación de letra mayúscula
+              if (!RegExp(r'(?=.*[A-Z])').hasMatch(value)) {
+                return 'Debe contener al menos una mayúscula';
+              }
+              // Verificación de letra minúscula
+              if (!RegExp(r'(?=.*[a-z])').hasMatch(value)) {
+                return 'Debe contener al menos una minúscula';
+              }
+              // Verificación de un número
+              if (!RegExp(r'(?=.*[0-9])').hasMatch(value)) {
+                return 'Debe contener al menos un número';
+              }
+              // Verificación de un carácter especial
+              if (!RegExp(r'(?=.*[!@#$%^&*(),.?":{}|<>])').hasMatch(value)) {
+                return 'Debe contener al menos un carácter especial';
+              }
+              // Si pasa todas las validaciones
+              return null;
+            },
           ),
           const SizedBox(height: 16),
           CustomTextFormField(
@@ -201,48 +217,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
             isPassword: true,
             obscureText: _obscureConfirmPassword,
             toggleObscureText: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword),
-            validator: (value) => value != _passwordController.text ? 'Las contraseñas no coinciden' : null,
-          ),
-          const SizedBox(height: 24),
-          
-          SizedBox(
-            height: 80,
-            child: RecaptchaV2(
-              apiKey: recaptchaSiteKey,
-              apiSecret: recaptchaSecretKey,
-              controller: _recaptchaV2Controller,
-              // Use the clean, reliable localhost URL.
-              pluginURL: _kRecaptchaURL,
-              onVerifiedSuccessfully: (isSuccess) {},
-              onVerifiedError: (String? data) {
-                if (data != null && data.startsWith("err_")) {
-                  _onRecaptchaError(data);
-                } else {
-                  setState(() {
-                    _isRecaptchaVerified = true;
-                    _recaptchaToken = data;
-                  });
-                }
-              },
-            ),
-          ),
-          
-          const SizedBox(height: 24),
-          
-          Consumer<IAMService>(
-            builder: (context, iamService, child) {
-              return Column(
-                children: [
-                  PrimaryButton(
-                    text: 'Crear Cuenta',
-                    isLoading: iamService.isLoading,
-                    onPressed: _isRecaptchaVerified ? _handleSignUp : null,
-                  ),
-                  ErrorMessageWidget(errorMessage: iamService.errorMessage),
-                ],
-              );
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Por favor, confirma tu contraseña';
+              }
+              if (value != _passwordController.text) {
+                return 'Las contraseñas no coinciden';
+              }
+              return null;
             },
           ),
+          const SizedBox(height: 32),
+          Consumer<IAMService>(builder: (context, iamService, child) {
+            return Column(
+              children: [
+                PrimaryButton(text: 'Crear Cuenta', isLoading: iamService.isLoading, onPressed: _handleSignUp),
+                ErrorMessageWidget(errorMessage: iamService.errorMessage),
+              ],
+            );
+          }),
         ],
       ),
     );
