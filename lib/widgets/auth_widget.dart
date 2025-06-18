@@ -1,7 +1,6 @@
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
-// --- Centralized Color Palette ---
 class AppColors {
   static const Color primaryGreen = Color(0xFF2E7D32); // A strong, modern green
   static const Color lightGreen = Color(0xFFE8F5E9); // For backgrounds
@@ -12,7 +11,6 @@ class AppColors {
   static const Color errorBackground = Color(0xFFFFEBEE);
 }
 
-// --- Reusable Custom Text Field ---
 class CustomTextFormField extends StatelessWidget {
   final TextEditingController controller;
   final String labelText;
@@ -76,7 +74,6 @@ class CustomTextFormField extends StatelessWidget {
   }
 }
 
-// --- Reusable Primary Button ---
 class PrimaryButton extends StatelessWidget {
   final String text;
   final bool isLoading;
@@ -126,7 +123,6 @@ class PrimaryButton extends StatelessWidget {
   }
 }
 
-// --- Reusable Error Message Widget ---
 class ErrorMessageWidget extends StatelessWidget {
   final String? errorMessage;
 
@@ -135,7 +131,7 @@ class ErrorMessageWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (errorMessage == null) {
-      return const SizedBox.shrink(); // Return nothing if there's no error
+      return const SizedBox.shrink(); 
     }
     return Container(
       margin: const EdgeInsets.only(top: 16),
@@ -161,7 +157,7 @@ class ErrorMessageWidget extends StatelessWidget {
   }
 }
 
-// --- Reusable "Switch Screen" Link ---
+
 class AuthLinkText extends StatelessWidget {
   final String text;
   final String linkText;

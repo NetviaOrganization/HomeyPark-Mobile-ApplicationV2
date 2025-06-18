@@ -6,6 +6,7 @@ import 'package:homeypark_mobile_application/services/parking_service.dart';
 import 'package:homeypark_mobile_application/services/reservation_service.dart';
 import 'package:homeypark_mobile_application/services/vehicle_service.dart';
 import 'package:homeypark_mobile_application/widgets/widgets.dart';
+import 'package:provider/provider.dart';
 
 class ReservationDetailScreen extends StatefulWidget {
   final int id;
@@ -60,13 +61,23 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
   }
 
   void _loadVehicleData() async {
-    final vehicle = await VehicleService.getVehicleById(_vehicleId);
-    if (vehicle != null) {
-      setState(() {
-        _vehicle = vehicle;
-      });
-    }
+  // 1. Obtiene la instancia del servicio usando Provider.
+  //    Usamos `context.read` porque estamos fuera del método `build` y solo
+  //    necesitamos llamar a una acción, no escuchar cambios.
+  final vehicleService = context.read<VehicleService>();
+
+  // 2. Llama al método de instancia en el objeto `vehicleService`.
+  final vehicle = await vehicleService.getVehicleById(_vehicleId);
+
+  // 3. Verificamos si el widget sigue "montado" antes de llamar a setState.
+  //    Esta es una buena práctica obligatoria para evitar errores si el
+  //    usuario navega fuera de la pantalla mientras se cargan los datos.
+  if (mounted && vehicle != null) {
+    setState(() {
+      _vehicle = vehicle;
+    });
   }
+}
 
   void _cancelReservation() async {
     Navigator.pop(context, "Ok");

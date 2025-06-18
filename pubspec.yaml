@@ -35,10 +35,15 @@ dependencies:
   crypto: ^3.0.3
   provider: ^6.1.5
   flutter_easy_recaptcha_v2: ^0.1.0
+  flutter_secure_storage: ^9.2.4
+  intl: ^0.20.2
+  flutter_localizations:
+    sdk: flutter
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   google_maps_flutter: ^2.9.0
+  google_maps_flutter_android: ^2.8.0
   geolocator: ^13.0.1
   webview_flutter: ^4.10.0
   flutter_dotenv: ^5.2.1

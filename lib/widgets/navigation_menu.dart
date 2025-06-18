@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:homeypark_mobile_application/screens/vehicles_screen.dart';
 import 'package:provider/provider.dart'; // 1. Importa Provider
 
 // Asegúrate de que los imports de tus pantallas y servicios sean correctos
@@ -36,8 +37,6 @@ const accountDestinations = [
   NavigationDrawerDestination(
       icon: Icon(Icons.directions_car), label: Text("Vehículos")),
   NavigationDrawerDestination(
-      icon: Icon(Icons.credit_card), label: Text("Métodos de pago")),
-  NavigationDrawerDestination(
       icon: Icon(Icons.logout), label: Text("Cerrar sesión")),
 ];
 
@@ -64,25 +63,44 @@ class _NavigationMenuState extends State<NavigationMenu> {
           MaterialPageRoute(builder: (context) => const ReservationsScreen()),
         );
         break;
-      // ... otros casos para las demás pantallas ...
-
-      // --- 2. AQUÍ ESTÁ LA LÓGICA CORREGIDA PARA CERRAR SESIÓN ---
-      // El índice 7 corresponde al último item de la lista combinada.
-      case 7: // Cerrar sesión
-        // Llama al método del servicio. Usa listen:false porque es una acción puntual.
-        // El AuthWrapper se encargará de la redirección automáticamente.
+     case 2:
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const MyGaragesScreen()), // Nueva pantalla
+      );
+      break;
+      case 3:
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+            builder: (context) => const HostReservationsScreen()),
+      );
+      break;
+      case 4:
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => const ProfileScreen()));
+      break;
+      case 5:
+      Navigator.push(
+          context,
+          MaterialPageRoute(
+              builder: (context) => const VehiclesScreen()));
+      break;
+      case 6: 
         Provider.of<IAMService>(context, listen: false).signOut();
         break;
 
       default:
-        // No hace nada si se selecciona una opción sin acción definida.
+
         break;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // El build no necesita cambios.
+
     return NavigationDrawer(
       selectedIndex: screenIndex,
       onDestinationSelected: handleScreenChanged,

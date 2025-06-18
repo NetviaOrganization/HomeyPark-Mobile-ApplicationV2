@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:provider/provider.dart';
-// 1. Importa el paquete correcto de reCAPTCHA
 import 'package:flutter_easy_recaptcha_v2/flutter_easy_recaptcha_v2.dart';
 
 import 'package:homeypark_mobile_application/services/iam_service.dart';
@@ -29,55 +28,50 @@ class _SignInScreenState extends State<SignInScreen> {
     super.dispose();
   }
 
-  // 2. Este método ahora coordina la validación y la llamada al reCAPTCHA
   Future<void> _handleSignIn() async {
-    // Oculta el teclado para una mejor experiencia de usuario
     FocusScope.of(context).unfocus();
-    // Valida el formulario antes de continuar
     if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
-    
-    // Muestra el reCAPTCHA usando el método del bottom sheet
     _showRecaptchaBottomSheet();
   }
-  
-  // 3. Lógica para mostrar el Modal Bottom Sheet con el reCAPTCHA
+
   void _showRecaptchaBottomSheet() {
     final recaptchaSiteKey = dotenv.env['RECAPTCHA_SITE_KEY'];
-    if (recaptchaSiteKey == null) {
-      _onRecaptchaError("La clave del sitio reCAPTCHA no está configurada.");
+    final recaptchaSecretKey = dotenv.env['RECAPTCHA_SECRET_KEY'];
+
+    if (recaptchaSiteKey == null || recaptchaSecretKey == null) {
+      _onRecaptchaError("Las claves de reCAPTCHA no están configuradas.");
       return;
     }
 
     showModalBottomSheet(
       context: context,
-      isScrollControlled: true, // Permite que el sheet ocupe más espacio vertical
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (BuildContext context) {
+      builder: (BuildContext modalContext) {
         return SizedBox(
-          // Ocupa el 80% de la altura de la pantalla para dar espacio suficiente
-          height: MediaQuery.of(context).size.height * 0.8,
+          height: MediaQuery.of(modalContext).size.height * 0.8,
           child: Column(
             children: [
-              // Botón para cerrar manualmente el modal
               Align(
                 alignment: Alignment.topRight,
                 child: IconButton(
                   icon: const Icon(Icons.close),
-                  onPressed: () => Navigator.pop(context),
+                  onPressed: () => Navigator.pop(modalContext),
                 ),
               ),
-              // El widget de reCAPTCHA ocupa el espacio restante
               Expanded(
                 child: RecaptchaV2(
-                  apiKey: recaptchaSiteKey,
-                  // El único callback necesario, se activa al tener éxito
+                   apiKey: recaptchaSiteKey,
+                  // --- LÓGICA SIMPLIFICADA ---
+                  // Ahora, simplemente obtenemos el token y se lo pasamos
+                  // a nuestro servicio para que él se encargue de todo.
                   onVerifiedSuccessfully: (String token) {
-                    Navigator.pop(context); // Cierra el bottom sheet
-                    _signInWithToken(token); // Procesa el token obtenido
+                    Navigator.pop(modalContext); // Cierra el modal
+                    _signInWithToken(token); // Llama a la lógica de inicio de sesión
                   },
                 ),
               ),
@@ -95,23 +89,21 @@ class _SignInScreenState extends State<SignInScreen> {
     );
   }
 
-  // Método que se llama con el token después de una verificación exitosa
   Future<void> _signInWithToken(String token) async {
     final signInData = SignInData(
       email: _emailController.text.trim(),
       password: _passwordController.text,
-      recaptchaToken: token,
+      recaptchaToken: token, // Pasamos el token, aunque el servicio ya no lo use para verificar.
     );
     final iamService = Provider.of<IAMService>(context, listen: false);
     await iamService.signIn(signInData);
   }
 
-  // Método genérico para manejar errores de reCAPTCHA
   void _onRecaptchaError(String? error) {
     debugPrint('reCAPTCHA Error: $error');
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(error ?? 'Error de verificación. Por favor, intenta de nuevo.')),
+      SnackBar(content: Text(error ?? 'Error de verificación.')),
     );
   }
 

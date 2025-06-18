@@ -1,9 +1,8 @@
-import 'package:flutter/foundation.dart';
-
+import 'package:homeypark_mobile_application/model/profile.dart';
 enum UserRole {
-  user('user'),
-  admin('admin'),
-  moderator('moderator');
+  guest('ROLE_GUEST'),
+  admin('ROLE_ADMIN'),
+  host('ROLE_HOST');
 
   const UserRole(this.jsonValue);
   final String jsonValue;
@@ -11,148 +10,109 @@ enum UserRole {
   static UserRole fromJson(String? value) {
     return values.firstWhere(
       (role) => role.jsonValue == value,
-      orElse: () => UserRole.user, 
+      orElse: () => UserRole.guest, 
     );
   }
 }
 
 class UserModel {
-  final String id;
+  // Propiedades principales
+  final String id; // ID de autenticación (ej: "5")
   final String email;
-  final String name;
-  final String? profileImageUrl;
-  final DateTime createdAt;
-  final DateTime lastLoginAt;
-  final bool isEmailVerified;
   final UserRole role;
+  // El Profile anidado contiene todos los datos personales.
+  final Profile profile;
 
   UserModel({
     required this.id,
     required this.email,
-    required this.name,
-    this.profileImageUrl,
-    required this.createdAt,
-    required this.lastLoginAt,
-    this.isEmailVerified = false,
-    this.role = UserRole.user,
+    required this.role,
+    required this.profile,
   });
 
+  // Getters de conveniencia para un acceso más fácil desde la UI
+  String get firstName => profile.firstName;
+  String get lastName => profile.lastName;
+  String get fullName => '${profile.firstName} ${profile.lastName}';
+  int get profileId => profile.id!;
+  DateTime get birthDate => profile.birthDate;
 
-  factory UserModel.fromJson(Map<String, dynamic> json) {
-    try {
-      return UserModel(
-        id: json['id'],
-        email: json['email'],
-        name: json['name'],
-        profileImageUrl: json['profileImageUrl'],
-        createdAt: DateTime.parse(json['createdAt']),
-        lastLoginAt: DateTime.parse(json['lastLoginAt']),
-        isEmailVerified: json['isEmailVerified'] ?? false,
-        role: UserRole.fromJson(json['role']),
-      );
-    } catch (e) {
-      // Helps debug if the data from storage is corrupt or malformed.
-      debugPrint('Error parsing UserModel from JSON: $e');
-      rethrow; // Rethrow to signal a critical data error.
-    }
+  // --- Constructor Factory Único y Robusto ---
+  // Este es el único constructor que necesitamos para crear un UserModel desde datos JSON.
+  factory UserModel.fromJson({
+    required Map<String, dynamic> authData,
+    required Map<String, dynamic> profileData,
+  }) {
+    return UserModel(
+      // Datos que vienen de la respuesta de autenticación
+      id: authData['id'].toString(),
+      email: authData['email'],
+      role: UserRole.fromJson((authData['roles'] as List?)?.first),
+
+      // Creamos el objeto Profile anidado a partir de los datos del perfil
+      profile: Profile.fromJson(profileData),
+    );
   }
-
-  /// Converts the UserModel instance to a JSON map.
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'email': email,
-      'name': name,
-      'profileImageUrl': profileImageUrl,
-      'createdAt': createdAt.toIso8601String(),
-      'lastLoginAt': lastLoginAt.toIso8601String(),
-      'isEmailVerified': isEmailVerified,
-      'role': role.jsonValue, // Use the enhanced enum value
-    };
+ factory UserModel.fromProfile({
+    required Map<String, dynamic> profileData,
+    required Map<String, dynamic> authData,
+    required String email, // El email lo pasamos desde el flujo de auth
+  }) {
+    return UserModel(
+      id: authData['id'].toString(),
+      // Como tu API no devuelve el rol en el perfil, asignamos uno por defecto.
+      // En una app real, el endpoint de perfil también debería devolver el rol del usuario.
+      role: UserRole.guest, 
+       email: authData['email'],
+      profile: Profile.fromJson(profileData),
+    );
   }
-
-  /// Creates a copy of the current user with updated fields.
+  /// Crea una copia del usuario actual, permitiendo actualizar campos específicos.
   UserModel copyWith({
     String? id,
     String? email,
-    String? name,
-    // Use ValueGetter to allow explicitly setting profileImageUrl to null.
-    // Example usage: copyWith(profileImageUrl: () => null)
-    ValueGetter<String?>? profileImageUrl,
-    DateTime? createdAt,
-    DateTime? lastLoginAt,
-    bool? isEmailVerified,
     UserRole? role,
+    Profile? profile,
   }) {
     return UserModel(
       id: id ?? this.id,
       email: email ?? this.email,
-      name: name ?? this.name,
-      profileImageUrl: profileImageUrl != null ? profileImageUrl() : this.profileImageUrl,
-      createdAt: createdAt ?? this.createdAt,
-      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
-      isEmailVerified: isEmailVerified ?? this.isEmailVerified,
       role: role ?? this.role,
+      profile: profile ?? this.profile,
     );
   }
-
-  @override
-  String toString() {
-    return 'UserModel(id: $id, email: $email, name: $name, role: $role)';
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    return other is UserModel && other.id == id;
-  }
-
-  @override
-  int get hashCode => id.hashCode;
 }
 
-// --- DATA CLASS FOR SIGN UP ---
+// --- DATA CLASSES PARA FORMULARIOS (SIN CAMBIOS) ---
+
 class SignUpData {
+  final String firstName;
+  final String lastName;
+  final DateTime birthDate;
   final String email;
   final String password;
-  final String name;
   final String confirmPassword;
-  final String recaptchaToken; // Añadir esta línea
+  final String recaptchaToken;
 
   SignUpData({
+    required this.firstName,
+    required this.lastName,
+    required this.birthDate,
     required this.email,
     required this.password,
-    required this.name,
     required this.confirmPassword,
     required this.recaptchaToken,
   });
-
-  bool get isPasswordValid => password.length >= 6;
-  bool get doPasswordsMatch => password == confirmPassword;
-  bool get isEmailValid => RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-  bool get isNameValid => name.trim().length >= 2;
-
-  bool get isValid =>
-      isPasswordValid &&
-      doPasswordsMatch &&
-      isEmailValid &&
-      isNameValid;
 }
 
-// --- DATA CLASS FOR SIGN IN ---
 class SignInData {
   final String email;
   final String password;
-  final String recaptchaToken; 
+  final String recaptchaToken;
 
   SignInData({
     required this.email,
     required this.password,
-    required this.recaptchaToken, 
+    required this.recaptchaToken,
   });
-
-  bool get isEmailValid => RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(email);
-  bool get isPasswordValid => password.isNotEmpty;
-
-  bool get isValid => isEmailValid && isPasswordValid;
 }
