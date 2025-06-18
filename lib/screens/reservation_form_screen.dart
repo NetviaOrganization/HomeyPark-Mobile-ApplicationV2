@@ -3,6 +3,8 @@ import 'package:homeypark_mobile_application/config/pref/preferences.dart';
 import 'package:homeypark_mobile_application/model/parking.dart';
 import 'package:homeypark_mobile_application/services/reservation_service.dart';
 
+import '../model/reservation_status.dart';
+
 class ReservationFormScreen extends StatefulWidget {
   final Parking parking;
   
@@ -167,15 +169,18 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
         _endTime!.hour,
         _endTime!.minute,
       );
-
-      final reservation = {
-        'userId': userId,
-        'parkingId': widget.parking.id,
-        'carModel': _carModelController.text.trim(),
-        'licensePlate': _licensePlateController.text.trim(),
-        'startDateTime': startDateTime.toIso8601String(),
-        'endDateTime': endDateTime.toIso8601String(),
-      };
+      
+      // Llamada CORRECTA al servicio actualizado
+      final reservation = await ReservationService.createReservation(
+        userId: userId,
+        parkingId: widget.parking.id,
+        startTime: startDateTime,
+        endTime: endDateTime,
+        carModel: _carModelController.text,
+        licensePlate: _licensePlateController.text,
+        totalPrice: _totalPrice,
+        // paymentProof: _selectedPaymentProof, // Opcional
+      );
       
       // Mostrar diálogo de éxito
       showDialog(
@@ -183,11 +188,11 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
         barrierDismissible: false,
         builder: (context) => AlertDialog(
           icon: const Icon(Icons.check_circle, color: Colors.green, size: 64),
-          title: const Text('¡Reserva creada!'),
+          title: const Text('¡Reserva creada exitosamente!'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Tu reserva ha sido creada exitosamente.'),
+              Text('ID de reserva: ${reservation.id}'),
               const SizedBox(height: 16),
               Container(
                 padding: const EdgeInsets.all(16),
@@ -198,12 +203,14 @@ class _ReservationFormScreenState extends State<ReservationFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Total a pagar: S/ ${_totalPrice.toStringAsFixed(2)}'),
+                    Text('Total: S/ ${_totalPrice.toStringAsFixed(2)}'),
                     const SizedBox(height: 4),
                     Text('Estacionamiento: ${widget.parking.location.address}'),
                     const SizedBox(height: 4),
                     Text('Desde: ${_formatDateTime(startDateTime)}'),
                     Text('Hasta: ${_formatDateTime(endDateTime)}'),
+                    const SizedBox(height: 4),
+                    Text('Estado: ${statusText(reservation.status)}'),
                   ],
                 ),
               ),
