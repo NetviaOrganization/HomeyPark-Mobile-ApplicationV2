@@ -60,11 +60,17 @@ class _ReservationDetailScreenState extends State<ReservationDetailScreen> {
   }
 
   void _loadVehicleData() async {
-    final vehicle = await VehicleService.getVehicleById(_vehicleId);
-    if (vehicle != null) {
-      setState(() {
-        _vehicle = vehicle;
-      });
+    try {
+      final vehicle = await VehicleService.getVehicleById(_vehicleId);
+      if (vehicle != null) {
+        setState(() {
+          _vehicle = vehicle;
+        });
+      } else {
+        debugPrint('⚡️ WARNING: No se pudo cargar el vehículo con ID: $_vehicleId');
+      }
+    } catch (e) {
+      debugPrint('⚡️ ERROR cargando vehículo: $e');
     }
   }
 

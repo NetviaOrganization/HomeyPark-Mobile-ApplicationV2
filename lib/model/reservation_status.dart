@@ -1,3 +1,5 @@
+import 'package:flutter/cupertino.dart';
+
 enum ReservationStatus {
   cancelled,
   inProgress,
@@ -23,9 +25,15 @@ ReservationStatus statusFromJson(String status) {
     "Cancelled": ReservationStatus.cancelled,
     "InProgress": ReservationStatus.inProgress,
     "Approved": ReservationStatus.approved,
+    "Confirmed": ReservationStatus.approved,
     "Pending": ReservationStatus.pending,
     "Completed": ReservationStatus.completed,
   };
 
-  return statusMap[status]!;
+  final result = statusMap[status];
+  if (result == null) {
+    debugPrint('⚡️ WARNING: Status desconocido recibido del backend: $status');
+    return ReservationStatus.pending; // Valor por defecto
+  }
+  return result;
 }

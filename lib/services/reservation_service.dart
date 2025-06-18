@@ -76,6 +76,7 @@ class ReservationService {
     File? paymentProof,
   }) async {
     try {
+      // 1. Crear el vehículo primero
       final vehicleData = {
         'model': carModel,
         'licensePlate': licensePlate,
@@ -95,6 +96,7 @@ class ReservationService {
       final vehicleJson = jsonDecode(vehicleResponse.body);
       final vehicleId = vehicleJson['id'];
 
+      // 2. Obtener información del parking para el hostId
       final parkingResponse = await http.get(
         Uri.parse('${BaseService.baseUrl}/parkings/$parkingId'),
       );
@@ -106,6 +108,7 @@ class ReservationService {
       final parkingJson = jsonDecode(parkingResponse.body);
       final hostId = parkingJson['profileId'];
 
+      // 3. Calcular horas y preparar datos de reserva
       final duration = endTime.difference(startTime);
       final hoursRegistered = (duration.inMinutes / 60.0).ceil();
 
@@ -113,32 +116,29 @@ class ReservationService {
         "hoursRegistered": hoursRegistered,
         "totalFare": totalPrice,
         "reservationDate": "${startTime.year}-${startTime.month.toString().padLeft(2, '0')}-${startTime.day.toString().padLeft(2, '0')}",
-        "startTime": "${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}",
-        "endTime": "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}",
+        "startTime": "${startTime.hour.toString().padLeft(2, '0')}:${startTime.minute.toString().padLeft(2, '0')}:00", // ← AGREGAR :00
+        "endTime": "${endTime.hour.toString().padLeft(2, '0')}:${endTime.minute.toString().padLeft(2, '0')}:00", // ← AGREGAR :00
         "guestId": userId,
         "hostId": hostId,
         "parkingId": parkingId,
         "vehicleId": vehicleId
       };
 
-      var request = http.MultipartRequest(
-        'POST',
-        Uri.parse(baseUrl),
-      );
-
+      // 4. Crear la reserva usando multipart/form-data
+      var request = http.MultipartRequest('POST', Uri.parse(baseUrl));
       request.fields['reservation'] = jsonEncode(reservationData);
 
       if (paymentProof != null) {
         request.files.add(
-          await http.MultipartFile.fromPath(
-            'file',
-            paymentProof.path,
-          ),
+          await http.MultipartFile.fromPath('file', paymentProof.path),
         );
       }
 
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
+
+      debugPrint('⚡️ Reservation Response Status: ${response.statusCode}');
+      debugPrint('⚡️ Reservation Response Body: ${response.body}');
 
       if (response.statusCode == 200 || response.statusCode == 201) {
         return Reservation.fromJson(jsonDecode(response.body));
@@ -146,6 +146,7 @@ class ReservationService {
         throw Exception('Error al crear la reserva: ${response.body}');
       }
     } catch (e) {
+      debugPrint('⚡️ Error completo en createReservation: $e');
       throw Exception('Error en createReservation: $e');
     }
   }
@@ -207,13 +208,15 @@ class ReservationService {
   }
 
   static Future<void> cancelReservation(int reservationId) async {
-    final response = await http.delete(
-      Uri.parse('$baseUrl/$reservationId'),
+    // CAMBIAR DE DELETE A PUT con status
+    final response = await http.put(
+      Uri.parse('$baseUrl/$reservationId/status'),
       headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({"status": "Cancelled"}), // ← Usar "Cancelled" con mayúscula
     );
 
     if (response.statusCode != 200) {
-      throw Exception('Failed to cancel reservation');
+      throw Exception('Failed to cancel reservation: ${response.body}');
     }
   }
 

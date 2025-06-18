@@ -39,7 +39,7 @@ class Reservation {
     return Reservation(
       id: json['id'],
       hoursRegistered: json['hoursRegistered'],
-      totalFare: json['totalFare'].toDouble(),
+      totalFare: (json['totalFare'] ?? 0.0).toDouble(), // Validar nulo
       reservationDate: DateTime.parse(json['reservationDate']),
       startTime: Time.fromJson(json['startTime']),
       endTime: Time.fromJson(json['endTime']),
@@ -48,10 +48,10 @@ class Reservation {
       hostId: json['hostId'],
       parkingId: json['parkingId'],
       vehicleId: json['vehicleId'],
-      paymentReceiptUrl: json['paymentReceiptUrl'],
-      paymentReceiptDeleteUrl: json['paymentReceiptDeleteUrl'],
-      createdAt: DateTime.parse(json['createdAt']),    // Parseo nuevo
-      updatedAt: DateTime.parse(json['updatedAt']),    // Parseo nuevo
+      paymentReceiptUrl: json['paymentReceiptUrl'] ?? '', // Validar nulo
+      paymentReceiptDeleteUrl: json['paymentReceiptDeleteUrl'] ?? '', // Validar nulo
+      createdAt: DateTime.parse(json['createdAt']),
+      updatedAt: DateTime.parse(json['updatedAt']),
     );
   }
 
@@ -81,15 +81,15 @@ class Time {
       return Time(
         hour: int.parse(parts[0]),
         minute: int.parse(parts[1]),
-        second: int.parse(parts[2]),
+        second: parts.length > 2 ? int.parse(parts[2]) : 0, // Agregar validación
         nano: 0,
       );
     } else if (json is Map<String, dynamic>) {
-      // Formato objeto del backend antiguo
+      // Formato objeto del backend
       return Time(
-        hour: json['hour'],
-        minute: json['minute'],
-        second: json['second'],
+        hour: json['hour'] ?? 0,
+        minute: json['minute'] ?? 0,
+        second: json['second'] ?? 0,
         nano: json['nano'] ?? 0,
       );
     } else {
@@ -98,6 +98,7 @@ class Time {
   }
 
   DateTime toDateTime() {
-    return DateTime(0, 1, 1, hour, minute, second, nano ~/ 1000000);
+    final now = DateTime.now();
+    return DateTime(now.year, now.month, now.day, hour, minute, second, nano ~/ 1000000);
   }
 }
