@@ -5,7 +5,7 @@ import 'package:homeypark_mobile_application/services/places_service.dart';
 class PlacesAutocompleteDialog extends StatefulWidget {
   final Function(PlaceDetails) onPlaceSelected;
 
-  const PlacesAutocompleteDialog({Key? key, required this.onPlaceSelected}) : super(key: key);
+  const PlacesAutocompleteDialog({super.key, required this.onPlaceSelected});
 
   @override
   State<PlacesAutocompleteDialog> createState() => _PlacesAutocompleteDialogState();

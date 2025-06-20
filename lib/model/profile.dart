@@ -40,4 +40,24 @@ class Profile {
       'updatedAt': updatedAt.toIso8601String(),
     };
   }
+
+  Profile copyWith({
+    int? id,
+    String? firstName,
+    String? lastName,
+    DateTime? birthDate,
+    int? userId,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return Profile(
+      id: id ?? this.id,
+      firstName: firstName ?? this.firstName,
+      lastName: lastName ?? this.lastName,
+      birthDate: birthDate ?? this.birthDate,
+      userId: userId ?? this.userId,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
 }
