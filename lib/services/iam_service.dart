@@ -103,17 +103,33 @@ class IAMService extends ChangeNotifier {
   });
 
    Future<bool> signIn(SignInData data) => _performAuthOperation(() async {
-    final isHuman = await _verifyRecaptchaToken(data.recaptchaToken);
-    if (!isHuman) throw 'La verificación reCAPTCHA ha fallado.';
+  final isHuman = await _verifyRecaptchaToken(data.recaptchaToken);
+  if (!isHuman) throw 'La verificación reCAPTCHA ha fallado.';
 
-    final response = await http.post(
-      Uri.parse('$_baseUrl/authentication/sign-in'),
-      headers: {'Content-Type': 'application/json'},
-      body: json.encode({'email': data.email, 'password': data.password}),
-    );
-    await _handleAuthResponse(response, email: data.email);
-  });
+  final url = Uri.parse('$_baseUrl/authentication/sign-in');
+  final headers = {'Content-Type': 'application/json'};
+  final bodyData = {'email': data.email, 'password': data.password};
+  final body = json.encode(bodyData);
 
+  if (kDebugMode) {
+    print('--- SIGN IN REQUEST ---');
+    print('URL: $url');
+    print('Headers: $headers');
+    print('Body: $body');
+    print('------------------------');
+  }
+
+  final response = await http.post(url, headers: headers, body: body);
+
+  if (kDebugMode) {
+    print('--- SIGN IN RESPONSE ---');
+    print('Status: ${response.statusCode}');
+    print('Body: ${response.body}');
+    print('-------------------------');
+  }
+
+  await _handleAuthResponse(response, email: data.email);
+});
    void updateLocalUserData({
     String? firstName,
     String? lastName,
